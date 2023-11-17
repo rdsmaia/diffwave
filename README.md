@@ -1,50 +1,9 @@
 # DiffWave
 ![PyPI Release](https://img.shields.io/pypi/v/diffwave?label=release) [![License](https://img.shields.io/github/license/lmnt-com/diffwave)](https://github.com/lmnt-com/diffwave/blob/master/LICENSE)
 
-**We're hiring!**
-If you like what we're building here, [come join us at LMNT](https://explore.lmnt.com).
+This is a fork from https://github.com/lmnt-com/diffwave. I made a few modifications to include the possibility of using different conditionings apart from mel spectrograms.
 
 DiffWave is a fast, high-quality neural vocoder and waveform synthesizer. It starts with Gaussian noise and converts it into speech via iterative refinement. The speech can be controlled by providing a conditioning signal (e.g. log-scaled Mel spectrogram). The model and architecture details are described in [DiffWave: A Versatile Diffusion Model for Audio Synthesis](https://arxiv.org/pdf/2009.09761.pdf).
-
-## What's new (2021-11-09)
-- unconditional waveform synthesis (thanks to [Andrechang](https://github.com/Andrechang)!)
-
-## What's new (2021-04-01)
-- fast sampling algorithm based on v3 of the DiffWave paper
-
-## What's new (2020-10-14)
-- new pretrained model trained for 1M steps
-- updated audio samples with output from new model
-
-## Status (2021-11-09)
-- [x] fast inference procedure
-- [x] stable training
-- [x] high-quality synthesis
-- [x] mixed-precision training
-- [x] multi-GPU training
-- [x] command-line inference
-- [x] programmatic inference API
-- [x] PyPI package
-- [x] audio samples
-- [x] pretrained models
-- [x] unconditional waveform synthesis
-
-Big thanks to [Zhifeng Kong](https://github.com/FengNiMa) (lead author of DiffWave) for pointers and bug fixes.
-
-## Audio samples
-[22.05 kHz audio samples](https://lmnt.com/assets/diffwave)
-
-## Pretrained models
-[22.05 kHz pretrained model](https://lmnt.com/assets/diffwave/diffwave-ljspeech-22kHz-1000578.pt) (31 MB, SHA256: `d415d2117bb0bba3999afabdd67ed11d9e43400af26193a451d112e2560821a8`)
-
-This pre-trained model is able to synthesize speech with a real-time factor of 0.87 (smaller is faster).
-
-### Pre-trained model details
-- trained on 4x 1080Ti
-- default parameters
-- single precision floating point (FP32)
-- trained on LJSpeech dataset excluding LJ001&ast; and LJ002&ast;
-- trained for 1000578 steps (1273 epochs)
 
 ## Install
 
@@ -55,7 +14,7 @@ pip install diffwave
 
 or from GitHub:
 ```
-git clone https://github.com/lmnt-com/diffwave.git
+git clone https://github.com/rdsmaia/diffwave.git
 cd diffwave
 pip install .
 ```
