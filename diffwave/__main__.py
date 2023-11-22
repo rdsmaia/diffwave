@@ -18,7 +18,7 @@ from torch.cuda import device_count
 from torch.multiprocessing import spawn
 
 from diffwave.learner import train, train_distributed
-from diffwave.params import params
+from diffwave.params_tacotron_v67 import params
 
 
 def _get_free_port():

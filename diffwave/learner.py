@@ -22,9 +22,10 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from diffwave.dataset import from_path, from_gtzan
+from diffwave.dataset import from_path, from_gtzan, from_path_tacotron
 from diffwave.model import DiffWave
-from diffwave.params import AttrDict
+from diffwave.params_tacotron_v67 import AttrDict
+from diffwave.inference import predict as diffwave_predict
 
 
 def _nested_map(struct, map_fn):
@@ -109,8 +110,14 @@ class DiffWaveLearner:
         if torch.isnan(loss).any():
           raise RuntimeError(f'Detected NaN loss at step {self.step}.')
         if self.is_master:
-          if self.step % 50 == 0:
-            self._write_summary(self.step, features, loss)
+          if self.step % self.params.summary_writer_step == 0:
+#            synthetic_audio = predict_at_training(feature['spectrogram'][0],
+#                        model,
+#                        params=None,
+#                        device=torch.device('cuda'),
+#                        fast_sampling=False):
+#
+            self._write_summary(self.step, features, loss, synthetic_audio=None)
           if self.step % len(self.dataset) == 0:
             self.save_to_checkpoint()
         self.step += 1
@@ -143,9 +150,11 @@ class DiffWaveLearner:
     self.scaler.update()
     return loss
 
-  def _write_summary(self, step, features, loss):
+  def _write_summary(self, step, features, loss, synthetic_audio=None):
     writer = self.summary_writer or SummaryWriter(self.model_dir, purge_step=step)
     writer.add_audio('feature/audio', features['audio'][0], step, sample_rate=self.params.sample_rate)
+    if synthetic_audio is not None:
+      writer.add_audio('feature/gen_audio', synthetic_audio, step, sample_rate=self.params.sample_rate)
     if not self.params.unconditional:
       writer.add_image('feature/spectrogram', torch.flip(features['spectrogram'][:1], [1]), step)
     writer.add_scalar('train/loss', loss, step)
@@ -168,7 +177,7 @@ def train(args, params):
   if args.data_dirs[0] == 'gtzan':
     dataset = from_gtzan(params)
   else:
-    dataset = from_path(args.data_dirs, params)
+    dataset = from_path_tacotron(args.data_dirs, params)
   model = DiffWave(params).cuda()
   _train_impl(0, model, dataset, args, params)
 

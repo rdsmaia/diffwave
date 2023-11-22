@@ -24,6 +24,25 @@ from glob import glob
 from torch.utils.data.distributed import DistributedSampler
 
 
+class ConditionalDataset_tacotron(torch.utils.data.Dataset):
+  def __init__(self, path):
+    super().__init__()
+    self.filenames = glob(f'{path[0]}/audio/audio-*.npy')
+
+  def __len__(self):
+    return len(self.filenames)
+
+  def __getitem__(self, idx):
+    audio_filename = self.filenames[idx]
+    spec_filename = audio_filename.replace('audio/audio-','mels/mel-')
+    signal = np.load(audio_filename)
+    spectrogram = np.load(spec_filename)
+    return {
+        'audio': signal,
+        'spectrogram': spectrogram.T
+    }
+
+
 class ConditionalDataset(torch.utils.data.Dataset):
   def __init__(self, paths):
     super().__init__()
@@ -68,6 +87,56 @@ class UnconditionalDataset(torch.utils.data.Dataset):
 class Collator:
   def __init__(self, params):
     self.params = params
+
+  def collate_tacotron(self, minibatch):
+    samples_per_frame = self.params.hop_samples
+    for record in minibatch:
+      if self.params.unconditional:
+          # Filter out records that aren't long enough.
+          if len(record['audio']) < self.params.audio_len:
+            del record['spectrogram']
+            del record['audio']
+            continue
+
+          start = random.randint(0, record['audio'].shape[-1] - self.params.audio_len)
+          end = start + self.params.audio_len
+          record['audio'] = record['audio'][start:end]
+          record['audio'] = np.pad(record['audio'], (0, (end - start) - len(record['audio'])), mode='constant')
+      else:
+          # Filter out records that aren't long enough.
+          if record['spectrogram'].shape[1] < self.params.crop_mel_frames:
+            del record['spectrogram']
+            del record['audio']
+            continue
+
+#          print(record['audio'].shape)
+#          print(record['spectrogram'].shape)
+
+          start = random.randint(0, record['spectrogram'].shape[1] - self.params.crop_mel_frames)
+          end = start + self.params.crop_mel_frames
+          record['spectrogram'] = record['spectrogram'][:,start:end]
+
+          start *= samples_per_frame
+          end *= samples_per_frame
+          record['audio'] = record['audio'][start:end]
+          record['audio'] = np.pad(record['audio'], (0, (end-start) - len(record['audio'])), mode='constant')
+
+#      print(record['audio'].shape)
+#      print(record['spectrogram'].shape)
+
+    audio = np.stack([record['audio'] for record in minibatch if 'audio' in record])
+    if self.params.unconditional:
+        return {
+            'audio': torch.from_numpy(audio),
+            'spectrogram': None,
+        }
+#    print(audio.shape)
+    spectrogram = np.stack([record['spectrogram'] for record in minibatch if 'spectrogram' in record])
+#    print(spectrogram.shape)
+    return {
+        'audio': torch.from_numpy(audio),
+        'spectrogram': torch.from_numpy(spectrogram),
+    }
 
   def collate(self, minibatch):
     samples_per_frame = self.params.hop_samples
@@ -135,6 +204,22 @@ class Collator:
           'audio': audio,
           'spectrogram': None,
     }
+
+
+def from_path_tacotron(data_dirs, params, is_distributed=False):
+  if params.unconditional:
+    dataset = UnconditionalDataset(data_dirs)
+  else:#with condition
+    dataset = ConditionalDataset_tacotron(data_dirs)
+  return torch.utils.data.DataLoader(
+      dataset,
+      batch_size=params.batch_size,
+      collate_fn=Collator(params).collate_tacotron,
+      shuffle=not is_distributed,
+      num_workers=os.cpu_count(),
+      sampler=DistributedSampler(dataset) if is_distributed else None,
+      pin_memory=True,
+      drop_last=True)
 
 
 def from_path(data_dirs, params, is_distributed=False):
